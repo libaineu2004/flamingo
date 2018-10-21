@@ -7,9 +7,9 @@
 #include <list>
 #include <map>
 #include <mutex>
-#include "../net/tcpserver.h"
-#include "../net/eventloop.h"
-#include "ClientSession.h"
+#include "../net/TcpServer.h"
+#include "../net/EventLoop.h"
+#include "ChatSession.h"
 
 using namespace net;
 
@@ -41,11 +41,11 @@ public:
 
     bool Init(const char* ip, short port, EventLoop* loop);
 
-    void GetSessions(std::list<std::shared_ptr<ClientSession>>& sessions);
+    void GetSessions(std::list<std::shared_ptr<ChatSession>>& sessions);
     //用户id和clienttype会唯一确定一个session
-    bool GetSessionByUserIdAndClientType(std::shared_ptr<ClientSession>& session, int32_t userid, int32_t clientType);
+    bool GetSessionByUserIdAndClientType(std::shared_ptr<ChatSession>& session, int32_t userid, int32_t clientType);
 
-    bool GetSessionsByUserId(std::list<std::shared_ptr<ClientSession>>& sessions, int32_t userid);
+    bool GetSessionsByUserId(std::list<std::shared_ptr<ChatSession>>& sessions, int32_t userid);
 
     //获取用户状态，若该用户不存在，则返回0
     int32_t GetUserStatusByUserId(int32_t userid);
@@ -61,8 +61,8 @@ private:
 
 private:
     std::shared_ptr<TcpServer>                     m_server;
-    std::list<std::shared_ptr<ClientSession>>      m_sessions;
+    std::list<std::shared_ptr<ChatSession>>      m_sessions;
     std::mutex                                     m_sessionMutex;      //多线程之间保护m_sessions
-    int                                            m_baseUserId{};
+    int                                            m_sessionId{};
     std::mutex                                     m_idMutex;           //多线程之间保护m_baseUserId
 };

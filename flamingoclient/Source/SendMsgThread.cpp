@@ -159,6 +159,18 @@ void CSendMsgThread::HandleItem(CNetData* pNetData)
 		HandleCreateNewGroup((const CCreateNewGroupRequest*)pNetData);
 		break;
 
+    case NET_DATA_OPERATE_TEAM:
+        HandleOperateTeam((const CAddTeamInfoRequest*)pNetData);
+        break;
+
+    case NET_DATA_MODIFY_FRIEND_MARKNAME:
+        HandleModifyFriendMarkName((const CModifyFriendMakeNameRequest*)pNetData);
+        break;
+
+    case NET_DATA_MOVE_FRIEND:
+        HandleMoveFriendMessage((const CMoveFriendRequest*)pNetData);
+        break;
+
 	default:
 #ifdef _DEBUG
 		::MessageBox(::GetForegroundWindow(), _T("Be cautious! Unhandled data type in send queen."), _T("Warning"), MB_OK|MB_ICONERROR);
@@ -450,6 +462,75 @@ void CSendMsgThread::HandleCreateNewGroup(const CCreateNewGroupRequest* pCreateN
     writeStream.Flush();
 
     LOG_INFO("Request to create new group, data=%s", szData);
+
+    CIUSocket::GetInstance().Send(outbuf);
+}
+
+void CSendMsgThread::HandleOperateTeam(const CAddTeamInfoRequest* pAddNewTeam)
+{
+    if (pAddNewTeam == NULL)
+        return;
+   
+    std::string outbuf;
+    BinaryWriteStream writeStream(&outbuf);
+    writeStream.WriteInt32(msg_type_updateteaminfo);
+    writeStream.WriteInt32(m_seq);
+    std::string dummy;
+    writeStream.WriteString(dummy);
+    writeStream.WriteInt32(pAddNewTeam->m_opType);
+    std::string strUtf8NewTeamName = EncodeUtil::UnicodeToUtf8(pAddNewTeam->m_strNewTeamName);
+    writeStream.WriteString(strUtf8NewTeamName);
+    std::string strUtf8OldTeamName = EncodeUtil::UnicodeToUtf8(pAddNewTeam->m_strOldTeamName);
+    writeStream.WriteString(strUtf8OldTeamName);
+    writeStream.Flush();
+
+    //LOG_INFO(_T("Request to update teamname, NewTeamName=%s, OldTeamName=%s."), pAddNewTeam->m_strNewTeamName, pAddNewTeam->m_strOldTeamName);
+
+    CIUSocket::GetInstance().Send(outbuf);
+}
+
+void CSendMsgThread::HandleModifyFriendMarkName(const CModifyFriendMakeNameRequest* pModifyFriendMakeNameRequest)
+{
+    if (pModifyFriendMakeNameRequest == NULL)
+        return;
+
+    std::string outbuf;
+    BinaryWriteStream writeStream(&outbuf);
+    writeStream.WriteInt32(msg_type_modifyfriendmarkname);
+    writeStream.WriteInt32(m_seq);
+    std::string dummyData;
+    writeStream.WriteString(dummyData);
+    writeStream.WriteInt32((int32_t)(pModifyFriendMakeNameRequest->m_uFriendID));
+    char szData[64] = { 0 };
+    EncodeUtil::UnicodeToUtf8(pModifyFriendMakeNameRequest->m_szNewMarkName, szData, ARRAYSIZE(szData));
+    std::string newMarkName = szData;
+    writeStream.WriteString(newMarkName);
+    writeStream.Flush();
+
+    LOG_INFO(_T("Request to update friend markname, friendid=%d, NewMarkName=%s."), pModifyFriendMakeNameRequest->m_uFriendID, pModifyFriendMakeNameRequest->m_szNewMarkName);
+
+    CIUSocket::GetInstance().Send(outbuf);
+}
+
+void CSendMsgThread::HandleMoveFriendMessage(const CMoveFriendRequest* pMoveFriendRequest)
+{
+    if (pMoveFriendRequest == NULL)
+        return;
+
+    std::string outbuf;
+    BinaryWriteStream writeStream(&outbuf);
+    writeStream.WriteInt32(msg_type_movefriendtootherteam);
+    writeStream.WriteInt32(m_seq);
+    std::string dummy;
+    writeStream.WriteString(dummy);
+    writeStream.WriteInt32(pMoveFriendRequest->m_nFriendID);
+    std::string strUtf8NewTeamName = EncodeUtil::UnicodeToUtf8(pMoveFriendRequest->m_strNewTeamName);
+    writeStream.WriteString(strUtf8NewTeamName);
+    std::string strUtf8OldTeamName = EncodeUtil::UnicodeToUtf8(pMoveFriendRequest->m_strOldTeamName);
+    writeStream.WriteString(strUtf8OldTeamName);
+    writeStream.Flush();
+
+    //LOG_INFO(_T("Request to move friend, NewTeamName=%s, OldTeamName=%s."), pAddNewTeam->m_strNewTeamName, pAddNewTeam->m_strOldTeamName);
 
     CIUSocket::GetInstance().Send(outbuf);
 }

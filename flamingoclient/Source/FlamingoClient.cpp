@@ -11,6 +11,8 @@
 #include "Startup.h"
 #include "File2.h"
 #include "Path.h"
+#include "../net/Msg.h"
+#include <sstream>
 
 CFlamingoClient& CFlamingoClient::GetInstance()
 {
@@ -238,7 +240,64 @@ BOOL CFlamingoClient::DeleteFriend(UINT uAccountID)
 
 bool CFlamingoClient::AddNewTeam(PCTSTR pszNewTeamName)
 {
-    return false;
+    if (pszNewTeamName == NULL || pszNewTeamName[0] == NULL)
+        return false;
+    
+    //TODO: 先判断是否离线
+    CAddTeamInfoRequest* pRequest = new CAddTeamInfoRequest();
+    pRequest->m_opType = updateteaminfo_operation_add;
+    pRequest->m_strNewTeamName = pszNewTeamName;
+
+    m_SendMsgThread.AddItem(pRequest);
+
+    return true;
+}
+
+bool CFlamingoClient::DeleteTeam(PCTSTR pszOldTeamName)
+{
+    if (pszOldTeamName == NULL || pszOldTeamName[0] == NULL)
+        return false;
+
+    //TODO: 先判断是否离线
+    CAddTeamInfoRequest* pRequest = new CAddTeamInfoRequest();
+    pRequest->m_opType = updateteaminfo_operation_delete;
+    pRequest->m_strOldTeamName = pszOldTeamName;
+
+    m_SendMsgThread.AddItem(pRequest);
+
+    return true;
+}
+
+bool CFlamingoClient::ModifyTeamName(PCTSTR pszNewTeamName, PCTSTR pszOldTeamName)
+{
+    if (pszNewTeamName == NULL || pszNewTeamName[0] == NULL || pszOldTeamName == NULL || pszOldTeamName[0] == NULL)
+        return false;
+
+    //TODO: 先判断是否离线
+    CAddTeamInfoRequest* pRequest = new CAddTeamInfoRequest();
+    pRequest->m_opType = updateteaminfo_operation_modify;
+    pRequest->m_strNewTeamName = pszNewTeamName;
+    pRequest->m_strOldTeamName = pszOldTeamName;
+
+    m_SendMsgThread.AddItem(pRequest);
+
+    return true;
+}
+
+bool CFlamingoClient::MoveFriendToOtherTeam(UINT uUserID, PCTSTR pszOldTeamName, PCTSTR pszNewTeamName)
+{
+    if (pszOldTeamName == NULL || pszOldTeamName[0] == NULL || pszNewTeamName == NULL || pszNewTeamName[0] == NULL)
+        return false;
+
+    //TODO: 先判断是否离线
+    CMoveFriendRequest* pRequest = new CMoveFriendRequest();
+    pRequest->m_nFriendID = (int)uUserID;
+    pRequest->m_strNewTeamName = pszNewTeamName;
+    pRequest->m_strOldTeamName = pszOldTeamName;
+
+    m_SendMsgThread.AddItem(pRequest);
+
+    return true;
 }
 
 BOOL CFlamingoClient::UpdateLogonUserInfo(  PCTSTR pszNickName, 
@@ -369,6 +428,17 @@ void CFlamingoClient::CreateNewGroup(PCTSTR pszGroupName)
 	CCreateNewGroupRequest* pRequest = new CCreateNewGroupRequest();
     EncodeUtil::UnicodeToUtf8(pszGroupName, szData, ARRAYSIZE(szData));
 	strcpy_s(pRequest->m_szGroupName, ARRAYSIZE(pRequest->m_szGroupName), szData);
+    m_SendMsgThread.AddItem(pRequest);
+}
+
+void CFlamingoClient::ModifyFriendMarkName(UINT friendID, PCTSTR pszNewMarkName)
+{
+    if (!m_bNetworkAvailable)
+        return;
+
+    CModifyFriendMakeNameRequest* pRequest = new CModifyFriendMakeNameRequest();
+    pRequest->m_uFriendID = friendID;
+    _tcscpy_s(pRequest->m_szNewMarkName, ARRAYSIZE(pRequest->m_szNewMarkName), pszNewMarkName);
     m_SendMsgThread.AddItem(pRequest);
 }
 
@@ -1058,6 +1128,7 @@ void CFlamingoClient::OnUpdateUserBasicInfo(UINT message, WPARAM wParam, LPARAM 
         CBuddyInfo* pBuddyInfo = NULL;
         TCHAR szAccountName[32] = { 0 };
         TCHAR szNickName[32] = { 0 };
+        TCHAR szMarkName[32] = { 0 };
         TCHAR szSignature[256] = { 0 };
         TCHAR szPhoneNumber[32] = { 0 };
         TCHAR szMail[32] = { 0 };
@@ -1072,6 +1143,7 @@ void CFlamingoClient::OnUpdateUserBasicInfo(UINT message, WPARAM wParam, LPARAM 
         {       
             pTeamInfo = new CBuddyTeamInfo();
             pTeamInfo->m_nIndex = nTeamIndex;
+            ++ nTeamIndex;
             pTeamInfo->m_strName = EncodeUtil::Utf8ToUnicode(iter.first);
             m_UserMgr.m_BuddyList.m_arrBuddyTeamInfo.push_back(pTeamInfo);
             
@@ -1079,6 +1151,7 @@ void CFlamingoClient::OnUpdateUserBasicInfo(UINT message, WPARAM wParam, LPARAM 
             {       
                 EncodeUtil::Utf8ToUnicode(iter2->szAccountName, szAccountName, ARRAYSIZE(szAccountName));
                 EncodeUtil::Utf8ToUnicode(iter2->szNickName, szNickName, ARRAYSIZE(szNickName));
+                EncodeUtil::Utf8ToUnicode(iter2->szMarkName, szMarkName, ARRAYSIZE(szMarkName));
                 EncodeUtil::Utf8ToUnicode(iter2->szSignature, szSignature, ARRAYSIZE(szSignature));
                 EncodeUtil::Utf8ToUnicode(iter2->szPhoneNumber, szPhoneNumber, ARRAYSIZE(szPhoneNumber));
                 EncodeUtil::Utf8ToUnicode(iter2->szMail, szMail, ARRAYSIZE(szMail));
@@ -1092,6 +1165,8 @@ void CFlamingoClient::OnUpdateUserBasicInfo(UINT message, WPARAM wParam, LPARAM 
                     pBuddyInfo->m_strAccount = szAccountName;
 
                     pBuddyInfo->m_strNickName = szNickName;
+
+                    pBuddyInfo->m_strMarkName = szMarkName;
 
                     pBuddyInfo->m_strSign = szSignature;
 

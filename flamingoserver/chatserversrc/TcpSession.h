@@ -6,7 +6,7 @@
 #pragma once
 
 #include <memory>
-#include "../net/tcpconnection.h"
+#include "../net/TcpConnection.h"
 
 using namespace net;
 
@@ -39,4 +39,5 @@ private:
 protected:
     //TcpSession引用TcpConnection类必须是弱指针，因为TcpConnection可能会因网络出错自己销毁，此时TcpSession应该也要销毁
     std::weak_ptr<TcpConnection>    tmpConn_;
+    //std::shared_ptr<TcpConnection>    tmpConn_;
 };

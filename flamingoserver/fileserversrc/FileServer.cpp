@@ -2,10 +2,10 @@
  *  文件服务器和图片服务器主服务类，FileServer.cpp
  *  zhangyl 2017.03.17
  **/
-#include "../net/inetaddress.h"
-#include "../base/logging.h"
-#include "../base/singleton.h"
 #include "FileServer.h"
+#include "../net/InetAddress.h"
+#include "../base/Logging.h"
+#include "../base/Singleton.h"
 #include "FileSession.h"
 
 bool FileServer::Init(const char* ip, short port, EventLoop* loop, const char* fileBaseDir/* = "filecache/"*/)

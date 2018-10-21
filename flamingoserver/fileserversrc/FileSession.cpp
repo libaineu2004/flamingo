@@ -2,19 +2,18 @@
  * FileSession.cpp
  * zhangyl, 2017.03.17
  **/
+#include "FileSession.h"
 #include <string.h>
 #include <sstream>
 #include <list>
-#include "../net/tcpconnection.h"
-#include "../net/protocolstream.h"
-#include "../base/logging.h"
-#include "../base/singleton.h"
+#include "../net/TcpConnection.h"
+#include "../net/ProtocolStream.h"
+#include "../base/Logging.h"
+#include "../base/Singleton.h"
 #include "FileMsg.h"
 #include "FileManager.h"
-#include "FileSession.h"
 
 using namespace net;
-using namespace balloon;
 
 //文件服务器最大的包50M
 #define MAX_PACKAGE_SIZE    50 * 1024 * 1024
@@ -74,7 +73,7 @@ void FileSession::OnRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBu
 
 bool FileSession::Process(const std::shared_ptr<TcpConnection>& conn, const char* inbuf, size_t length)
 {
-    balloon::BinaryReadStream readStream(inbuf, length);
+    BinaryReadStream readStream(inbuf, length);
     int32_t cmd;
     if (!readStream.ReadInt32(cmd))
     {

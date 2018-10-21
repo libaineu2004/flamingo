@@ -1,4 +1,3 @@
-
 /*
  * An internal implementation, based on Alexander Peslyak's
  * public domain implementation:
@@ -7,8 +6,8 @@
  * if no MD5 implementation was found in system.
  */
 
-#include <string.h>
 #include "ngx_md5.h"
+#include <string.h>
 
 #define ngx_memcpy(x,y,n) memcpy((x),(y),(n))
 #define ngx_memzero(x,n) memset((x),0,(n))
@@ -19,8 +18,7 @@ static const u_char *ngx_md5_body(ngx_md5_t *ctx, const u_char *data,
     size_t size);
 
 
-void
-ngx_md5_init(ngx_md5_t *ctx)
+void ngx_md5_init(ngx_md5_t *ctx)
 {
     ctx->a = 0x67452301;
     ctx->b = 0xefcdab89;
@@ -31,8 +29,7 @@ ngx_md5_init(ngx_md5_t *ctx)
 }
 
 
-void
-ngx_md5_update(ngx_md5_t *ctx, const void *data, size_t size)
+void ngx_md5_update(ngx_md5_t *ctx, const void *data, size_t size)
 {
     size_t  used, free;
 
@@ -62,8 +59,7 @@ ngx_md5_update(ngx_md5_t *ctx, const void *data, size_t size)
 }
 
 
-void
-ngx_md5_final(u_char result[16], ngx_md5_t *ctx)
+void ngx_md5_final(u_char result[16], ngx_md5_t *ctx)
 {
     size_t  used, free;
 

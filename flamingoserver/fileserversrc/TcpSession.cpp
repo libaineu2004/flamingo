@@ -2,10 +2,10 @@
  * TcpSession.cpp
  * zhangyl 2017.03.09
  **/
-#include "../base/logging.h"
-#include "../net/protocolstream.h"
-#include "FileMsg.h"
 #include "TcpSession.h"
+#include "../base/Logging.h"
+#include "../net/ProtocolStream.h"
+#include "FileMsg.h"
 
 TcpSession::TcpSession(const std::weak_ptr<TcpConnection>& tmpconn) : tmpConn_(tmpconn)
 {
@@ -20,7 +20,7 @@ TcpSession::~TcpSession()
 void TcpSession::Send(int32_t cmd, int32_t seq, int32_t errorcode, const std::string& filemd5, int64_t offset, int64_t filesize, const std::string& filedata)
 {
     std::string outbuf;
-    balloon::BinaryWriteStream writeStream(&outbuf);
+    net::BinaryWriteStream writeStream(&outbuf);
     writeStream.WriteInt32(cmd);
     writeStream.WriteInt32(seq);
     writeStream.WriteInt32(errorcode);

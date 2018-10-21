@@ -3,9 +3,9 @@
 #include <set>
 #include <vector>
 
-#include "../base/timestamp.h"
-#include "../net/callbacks.h"
-#include "../net/channel.h"
+#include "../base/Timestamp.h"
+#include "../net/Callbacks.h"
+#include "../net/Channel.h"
 
 namespace net
 {

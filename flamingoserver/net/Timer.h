@@ -2,8 +2,8 @@
 
 #include <atomic>
 #include <stdint.h>
-#include "../base/timestamp.h"
-#include "../net/callbacks.h"
+#include "../base/Timestamp.h"
+#include "../net/Callbacks.h"
 
 namespace net
 {

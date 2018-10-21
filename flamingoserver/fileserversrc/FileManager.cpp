@@ -2,13 +2,14 @@
  *  文件管理类, FileManager.h
  *  zhangyl 2017.03.17
  **/
+#include "FileManager.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <string.h>
 //#include <sys/stat.h>
-#include "../base/logging.h"
-#include "FileManager.h"
+#include "../base/Logging.h"
+
 
 FileManager::FileManager()
 {

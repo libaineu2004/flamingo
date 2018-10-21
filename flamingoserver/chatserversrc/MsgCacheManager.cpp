@@ -2,7 +2,7 @@
  *  ÏûÏ¢»º´æÀà£¬ MsgCacheManager.cpp
  *  zhangyl 2017.03.16
  **/
-#include "../base/logging.h"
+#include "../base/Logging.h"
 #include "MsgCacheManager.h"
 
 MsgCacheManager::MsgCacheManager()
