@@ -4,7 +4,7 @@
 #include "IULog.h"
 #include "MD5Sum.h"
 #include "Utils.h"
-#include "EncodingUtil.h"
+#include "EncodeUtil.h"
 #include "Path.h"
 #include "FlamingoClient.h"
 #include "File2.h"
@@ -14,8 +14,6 @@
 #include "net/FileMsg.h"
 #include "net/protocolstream.h"
 #include "net/IUProtocolData.h"
-
-using namespace balloon;
 
 CImageTaskThread::CImageTaskThread() :  m_seq(0)
 {
@@ -199,6 +197,8 @@ void CImageTaskThread::HandleItem(CFileItemRequest* pFileItem)
 			++pFileItem->m_nRetryTimes;
 			::Sleep(3000);
 		}
+
+        //TODO：聊天图片如果下载失败了，不通知界面吗？
 		
 		CBuddyMessage* lpMsg = pFileItem->m_pBuddyMsg;
 
@@ -346,12 +346,19 @@ long CImageTaskThread::UploadImage(PCTSTR pszFileName, HWND hwndReflection, HAND
     char szUtf8Name[MAX_PATH] = { 0 };
     EncodeUtil::UnicodeToUtf8(::PathFindFileName(pszFileName), szUtf8Name, ARRAYSIZE(szUtf8Name));
 
+    CIUSocket& iusocket = CIUSocket::GetInstance();
+    if (!iusocket.ConnectToImgServer())
+    {
+        LOG_ERROR(_T("Failed to connect to ImgServer when upload image:%s as unable to open the file."), pszFileName);
+        return false;
+    }
+
     int64_t offsetX = 0;
 
     while (true)
     {
         std::string outbuf;
-        BinaryWriteStream writeStream(&outbuf);
+        net::BinaryStreamWriter writeStream(&outbuf);
         writeStream.WriteInt32(msg_type_upload_req);
         writeStream.WriteInt32(m_seq);
         writeStream.WriteCString(szMd5, 32);
@@ -364,13 +371,13 @@ long CImageTaskThread::UploadImage(PCTSTR pszFileName, HWND hwndReflection, HAND
         DWORD dwFileRead;
         if (!::ReadFile(hFile, buffer.GetBuffer(), (DWORD)eachfilesize, &dwFileRead, NULL) || eachfilesize != (int64_t)dwFileRead)
             break;
-        string filedata;
+        std::string filedata;
         filedata.append(buffer.GetBuffer(), (size_t)buffer.GetSize());
         writeStream.WriteString(filedata);
         writeStream.Flush();
         file_msg headerx = { outbuf.length() };
         outbuf.insert(0, (const char*)&headerx, sizeof(headerx));
-        if (!CIUSocket::GetInstance().SendOnImgPort(outbuf.c_str(), (int64_t)outbuf.length()))
+        if (!iusocket.SendOnImgPort(outbuf.c_str(), (int64_t)outbuf.length()))
             break;
 
         offsetX += eachfilesize;
@@ -385,14 +392,14 @@ long CImageTaskThread::UploadImage(PCTSTR pszFileName, HWND hwndReflection, HAND
         ::PostMessage(hwndReflection, FMG_MSG_SEND_FILE_PROGRESS, 0, (LPARAM)pFileProgress);
 
         file_msg header;
-        if (!CIUSocket::GetInstance().RecvOnImgPort((char*)&header, (int64_t)sizeof(header)))
+        if (!iusocket.RecvOnImgPort((char*)&header, (int64_t)sizeof(header)))
             break;
 
         CMiniBuffer recvBuf(header.packagesize);
-        if (!CIUSocket::GetInstance().RecvOnImgPort(recvBuf.GetBuffer(), recvBuf.GetSize()))
+        if (!iusocket.RecvOnImgPort(recvBuf.GetBuffer(), recvBuf.GetSize()))
             break;
 
-        BinaryReadStream readStream(recvBuf.GetBuffer(), (size_t)recvBuf.GetSize());
+        net::BinaryStreamReader readStream(recvBuf.GetBuffer(), (size_t)recvBuf.GetSize());
         int32_t cmd;
         if (!readStream.ReadInt32(cmd) || cmd != msg_type_upload_resp)
             break;
@@ -418,7 +425,7 @@ long CImageTaskThread::UploadImage(PCTSTR pszFileName, HWND hwndReflection, HAND
         if (!readStream.ReadInt64(filesize))
             break;
 
-        string dummyfiledata;
+        std::string dummyfiledata;
         size_t filedatalength;
         if (!readStream.ReadString(&dummyfiledata, 0, filedatalength) || filedatalength != 0)
             break;
@@ -434,12 +441,12 @@ long CImageTaskThread::UploadImage(PCTSTR pszFileName, HWND hwndReflection, HAND
             pFileProgress->nPercent = 100;
             _tcscpy_s(pFileProgress->szDestPath, ARRAYSIZE(pFileProgress->szDestPath), pszFileName);
             ::PostMessage(hwndReflection, FMG_MSG_SEND_FILE_PROGRESS, 0, (LPARAM)pFileProgress);
+            iusocket.CloseImgServerConnection();
             return FILE_UPLOAD_SUCCESS;
         }
-
     }
 
-
+    iusocket.CloseImgServerConnection();
     return FILE_UPLOAD_FAILED;
 }
 
@@ -480,6 +487,14 @@ long CImageTaskThread::DownloadImage(LPCSTR lpszFileName, LPCTSTR lpszDestPath, 
         LOG_ERROR(_T("Failed to download file %s as unable to create the file."), lpszDestPath);
         return FILE_DOWNLOAD_FAILED;
     }
+
+    CIUSocket& iusocket = CIUSocket::GetInstance();
+    if (!iusocket.ConnectToImgServer())
+    {
+        LOG_ERROR(_T("Failed to connect to ImgServer when download file %s as unable to create the file."), lpszDestPath);
+        return FILE_DOWNLOAD_FAILED;
+    }
+
     CAutoFileHandle autoFileHandle(hFile);
     FileProgress* pFileProgress = NULL;
 
@@ -487,7 +502,7 @@ long CImageTaskThread::DownloadImage(LPCSTR lpszFileName, LPCTSTR lpszDestPath, 
     while (true)
     {
         std::string outbuf;
-        BinaryWriteStream writeStream(&outbuf);
+        net::BinaryStreamWriter writeStream(&outbuf);
         writeStream.WriteInt32(msg_type_download_req);
         writeStream.WriteInt32(m_seq);
         writeStream.WriteCString(lpszFileName, strlen(lpszFileName));
@@ -495,34 +510,36 @@ long CImageTaskThread::DownloadImage(LPCSTR lpszFileName, LPCTSTR lpszDestPath, 
         writeStream.WriteInt64(dummyoffset);
         int64_t dummyfilesize = 0;
         writeStream.WriteInt64(dummyfilesize);
-        string dummyfiledata;
+        std::string dummyfiledata;
         writeStream.WriteString(dummyfiledata);
+        int32_t clientNetType = client_net_type_broadband;
+        writeStream.WriteInt32(clientNetType);
         writeStream.Flush();
 
         file_msg header = { outbuf.length() };
         outbuf.insert(0, (const char*)&header, sizeof(header));
 
-        if (!CIUSocket::GetInstance().SendOnImgPort(outbuf.c_str(), (int64_t)outbuf.length()))
+        if (!iusocket.SendOnImgPort(outbuf.c_str(), (int64_t)outbuf.length()))
         {
             nBreakType = FILE_DOWNLOAD_FAILED;
             break;
         }
 
         file_msg recvheader;
-        if (!CIUSocket::GetInstance().RecvOnImgPort((char*)&recvheader, (int64_t)sizeof(recvheader)))
+        if (!iusocket.RecvOnImgPort((char*)&recvheader, (int64_t)sizeof(recvheader)))
         {
             nBreakType = FILE_DOWNLOAD_FAILED;
             break;
         }
 
         CMiniBuffer buffer(recvheader.packagesize);
-        if (!CIUSocket::GetInstance().RecvOnImgPort(buffer.GetBuffer(), recvheader.packagesize))
+        if (!iusocket.RecvOnImgPort(buffer.GetBuffer(), recvheader.packagesize))
         {
             nBreakType = FILE_DOWNLOAD_FAILED;
             break;
         }
 
-        BinaryReadStream readStream(buffer.GetBuffer(), (size_t)recvheader.packagesize);
+        net::BinaryStreamReader readStream(buffer.GetBuffer(), (size_t)recvheader.packagesize);
         int32_t cmd;
         if (!readStream.ReadInt32(cmd) || cmd != msg_type_download_resp)
         {
@@ -568,7 +585,7 @@ long CImageTaskThread::DownloadImage(LPCSTR lpszFileName, LPCTSTR lpszDestPath, 
             break;
         }
 
-        string filedata;
+        std::string filedata;
         size_t filedatalength;
         if (!readStream.ReadString(&filedata, 0, filedatalength) || filedatalength == 0)
         {
@@ -598,6 +615,9 @@ long CImageTaskThread::DownloadImage(LPCSTR lpszFileName, LPCTSTR lpszDestPath, 
             break;
         }
     }// end while-loop
+
+    //关闭与图片服务器的连接
+    iusocket.CloseImgServerConnection();
 
     //下载成功
     if (nBreakType == FILE_DOWNLOAD_SUCCESS)

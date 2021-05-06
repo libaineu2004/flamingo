@@ -32,7 +32,7 @@
 #include "Startup.h"
 #include "MultiChatMemberSelectionDlg.h"
 #include "ChatDlgCommon.h"
-#include "EncodingUtil.h"
+#include "EncodeUtil.h"
 #include "UIText.h"
 #include "PerformanceCounter.h"
 #include "net/Msg.h"
@@ -1440,6 +1440,8 @@ bool CMainDlg::StartLogin(BOOL bAutoLogin/* = FALSE*/)
 		if (!bRet)
 			return true;
 
+        m_LoginDlg.SetLoginAccountInfo(&m_stAccountInfo);
+        m_LoginDlg.DoLogin();
 	}
 	else
 	{

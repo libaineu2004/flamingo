@@ -4,6 +4,8 @@
 #include <condition_variable> 
 #include <thread>
 #include <string>
+#include <functional>
+//#include "EventLoop.h"
 
 namespace net
 {
@@ -15,8 +17,7 @@ namespace net
 	public:
 		typedef std::function<void(EventLoop*)> ThreadInitCallback;
 
-		EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback(),
-			const std::string& name = std::string());
+		EventLoopThread(const ThreadInitCallback& cb = ThreadInitCallback(), const std::string& name = "");
 		~EventLoopThread();
 		EventLoop* startLoop();
         void stopLoop();
@@ -26,7 +27,7 @@ namespace net
 
 		EventLoop*                   loop_;
 		bool                         exiting_;
-		std::shared_ptr<std::thread> thread_;
+		std::unique_ptr<std::thread> thread_;
 		std::mutex                   mutex_;
 		std::condition_variable      cond_;
 		ThreadInitCallback           callback_;

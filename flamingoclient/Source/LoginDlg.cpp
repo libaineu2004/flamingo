@@ -9,7 +9,7 @@
 #include "Path.h"
 #include "UserSessionData.h"
 #include "GDIFactory.h"
-#include "EncodingUtil.h"
+#include "EncodeUtil.h"
 #include "IULog.h"
 #include "net/Msg.h"
 
@@ -34,6 +34,15 @@ BOOL CLoginDlg::GetLoginAccountInfo(LOGIN_ACCOUNT_INFO* lpAccount)
 
 	memcpy(lpAccount, &m_stAccountInfo, sizeof(LOGIN_ACCOUNT_INFO));
 	return TRUE;
+}
+
+BOOL CLoginDlg::SetLoginAccountInfo(const LOGIN_ACCOUNT_INFO* lpAccount)
+{
+    if (NULL == lpAccount)
+        return FALSE;
+
+    memcpy(&m_stAccountInfo, lpAccount, sizeof(LOGIN_ACCOUNT_INFO));
+    return TRUE;
 }
 
 void CLoginDlg::SetDefaultAccount(PCTSTR pszDefaultAccount)
@@ -200,9 +209,7 @@ void CLoginDlg::OnBtn_Login(UINT uNotifyCode, int nID, CWindow wndCtl)
 	// 记录当前用户信息
 	m_lpFMGClient->m_UserMgr.m_UserInfo.m_strAccount = m_stAccountInfo.szUser;
 
-    HANDLE hLoginThread = (HANDLE)::_beginthreadex(NULL, 0, LoginThreadProc, this, 0, NULL);
-    if (hLoginThread != NULL)
-        ::CloseHandle(hLoginThread);
+    DoLogin();
 
 	EndDialog(IDOK);
 }
@@ -272,7 +279,8 @@ BOOL CLoginDlg::InitUI()
 	m_SkinDlg.SetMinSysBtnPic(_T("SysBtn\\btn_mini_normal.png"), _T("SysBtn\\btn_mini_highlight.png"), _T("SysBtn\\btn_mini_down.png"));
 	m_SkinDlg.SetCloseSysBtnPic(_T("SysBtn\\btn_close_normal.png"), _T("SysBtn\\btn_close_highlight.png"), _T("SysBtn\\btn_close_down.png"));
 	m_SkinDlg.SubclassWindow(m_hWnd);
-	m_SkinDlg.MoveWindow(0, 0, 550, 380, FALSE);
+	//m_SkinDlg.MoveWindow(0, 0, 550, 380, FALSE);
+    m_SkinDlg.MoveWindow(0, 0, 550, 350, FALSE);
 	m_SkinDlg.SetTitleText(_T(""));
 
 
@@ -701,4 +709,11 @@ void CLoginDlg::StatusMenuBtn_SetIconPic(CSkinButton& btnStatus, long nStatus)
 
 	btnStatus.SetIconPic(lpszFileName);
 	btnStatus.Invalidate();
+}
+
+void CLoginDlg::DoLogin()
+{
+    HANDLE hLoginThread = (HANDLE)::_beginthreadex(NULL, 0, LoginThreadProc, this, 0, NULL);
+    if (hLoginThread != NULL)
+        ::CloseHandle(hLoginThread);
 }

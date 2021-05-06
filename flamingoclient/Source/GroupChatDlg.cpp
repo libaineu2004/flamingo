@@ -7,7 +7,7 @@
 #include "GDIFactory.h"
 #include "IULog.h"
 #include "File2.h"
-#include "EncodingUtil.h"
+#include "EncodeUtil.h"
 #include "LoginSettingsDlg.h"
 #include "UIText.h"
 
@@ -777,7 +777,8 @@ void CGroupChatDlg::OnBtn_Face(UINT uNotifyCode, int nID, CWindow wndCtl)
 			m_tbMid.ClientToScreen(&rcBtn);
 
 			int cx = 432;
-			int cy = 236;
+			//int cy = 236;
+            int cy = 306;
 			int x = rcBtn.left - cx / 2;
 			int y = rcBtn.top - cy;
 

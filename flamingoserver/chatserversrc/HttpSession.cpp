@@ -7,13 +7,13 @@
 #include <string.h>
 #include <vector>
 #include "../net/EventLoopThread.h"
-#include "../base/Logging.h"
+#include "../base/AsyncLog.h"
 #include "../base/Singleton.h"
 #include "../utils/StringUtil.h"
-#include "IMServer.h"
+#include "../utils/URLEncodeUtil.h"
+#include "ChatServer.h"
 #include "UserManager.h"
 #include "BussinessLogic.h"
-#include "../utils/URLEncodeUtil.h"
 
 
 #define MAX_URL_LENGTH 2048
@@ -23,9 +23,9 @@ HttpSession::HttpSession(std::shared_ptr<TcpConnection>& conn) : m_tmpConn(conn)
 
 }
 
-void HttpSession::OnRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBuffer, Timestamp receivTime)
+void HttpSession::onRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBuffer, Timestamp receivTime)
 {
-    //LOG_INFO << "Recv a http request from " << conn->peerAddress().toIpPort();
+    //LOGI << "Recv a http request from " << conn->peerAddress().toIpPort();
     
     string inbuf;
     //先把所有数据都取出来
@@ -59,7 +59,7 @@ void HttpSession::OnRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBu
 
     //以\r\n分割每一行
     std::vector<string> lines;
-    StringUtil::Split(inbuf, lines, "\r\n");
+    StringUtil::split(inbuf, lines, "\r\n");
     if (lines.size() < 1 || lines[0].empty())
     {
         conn->forceClose();
@@ -67,7 +67,7 @@ void HttpSession::OnRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBu
     }
 
     std::vector<string> chunk;
-    StringUtil::Split(lines[0], chunk, " ");
+    StringUtil::split(lines[0], chunk, " ");
     //chunk中至少有三个字符串：GET+url+HTTP版本号
     if (chunk.size() < 3)
     {
@@ -75,11 +75,11 @@ void HttpSession::OnRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBu
         return;
     }
 
-    LOG_INFO << "url: " << chunk[1] << " from " << conn->peerAddress().toIpPort();
+    LOGI("url: %s  from %s", chunk[1].c_str(), conn->peerAddress().toIpPort().c_str());
     //inbuf = /register.do?p={%22username%22:%20%2213917043329%22,%20%22nickname%22:%20%22balloon%22,%20%22password%22:%20%22123%22}
     std::vector<string> part;
     //通过?分割成前后两端，前面是url，后面是参数
-    StringUtil::Split(chunk[1], part, "?");
+    StringUtil::split(chunk[1], part, "?");
     //chunk中至少有三个字符串：GET+url+HTTP版本号
     if (part.size() < 2)
     {
@@ -90,16 +90,16 @@ void HttpSession::OnRead(const std::shared_ptr<TcpConnection>& conn, Buffer* pBu
     string url = part[0];
     string param = part[1].substr(2);
         
-    if (!Process(conn, url, param))
+    if (!process(conn, url, param))
     {
-        LOG_ERROR << "handle http request error, from:" << conn->peerAddress().toIpPort() << ", request: " << pBuffer->retrieveAllAsString();
+        LOGE("handle http request error, from: %s, request: %s", conn->peerAddress().toIpPort().c_str(), pBuffer->retrieveAllAsString().c_str());
     }
 
     //短连接，处理完关闭连接
     conn->forceClose();
 }
 
-void HttpSession::Send(const char* data, size_t length)
+void HttpSession::send(const char* data, size_t length)
 {
     if (!m_tmpConn.expired())
     {
@@ -108,18 +108,18 @@ void HttpSession::Send(const char* data, size_t length)
     }
 }
 
-bool HttpSession::Process(const std::shared_ptr<TcpConnection>& conn, const std::string& url, const std::string& param)
+bool HttpSession::process(const std::shared_ptr<TcpConnection>& conn, const std::string& url, const std::string& param)
 {
     if (url.empty())
         return false;
 
     if (url == "/register.do")
     {
-        OnRegisterResponse(param, conn);
+        onRegisterResponse(param, conn);
     }
     else if (url == "/login.do")
     {
-        OnLoginResponse(param, conn);
+        onLoginResponse(param, conn);
     }
     else if (url == "/getfriendlist.do")
     {
@@ -145,7 +145,7 @@ bool HttpSession::Process(const std::shared_ptr<TcpConnection>& conn, const std:
     \r\n\
     {"code": 0, "msg": ok}
 */
-void HttpSession::MakeupResponse(const std::string& input, std::string& output)
+void HttpSession::makeupResponse(const std::string& input, std::string& output)
 { 
     std::ostringstream os;
     os << "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length:"
@@ -155,24 +155,24 @@ void HttpSession::MakeupResponse(const std::string& input, std::string& output)
     output = os.str();
 }
 
-void HttpSession::OnRegisterResponse(const std::string& data, const std::shared_ptr<TcpConnection>& conn)
+void HttpSession::onRegisterResponse(const std::string& data, const std::shared_ptr<TcpConnection>& conn)
 {
     string retData;
     string decodeData;
-    URLEncodeUtil::Decode(data, decodeData);
-    BussinessLogic::RegisterUser(decodeData, conn, false, retData);
+    URLEncodeUtil::decode(data, decodeData);
+    BussinessLogic::registerUser(decodeData, conn, false, retData);
     if (!retData.empty())
     {
         std::string response;
-        URLEncodeUtil::Encode(retData, response);
-        MakeupResponse(retData, response);
+        URLEncodeUtil::encode(retData, response);
+        makeupResponse(retData, response);
         conn->send(response);
 
-        LOG_INFO << "Response to client: cmd=msg_type_register" << ", data=" << retData << conn->peerAddress().toIpPort();;
+        LOGI("Response to client: cmd=msg_type_register, data: %s, client: %s", retData.c_str(), conn->peerAddress().toIpPort().c_str());
     }
 }
 
-void HttpSession::OnLoginResponse(const std::string& data, const std::shared_ptr<TcpConnection>& conn)
+void HttpSession::onLoginResponse(const std::string& data, const std::shared_ptr<TcpConnection>& conn)
 {
 
 }
